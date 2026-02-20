@@ -33,16 +33,17 @@ acquire_lock
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 TEMP_FILE=$(mktemp)
 
-# Block each dependent and record reason
+# Batch block all dependents in a single jq call
+DEP_JSON=$(echo "$DEPENDENTS" | jq -R . | jq -s .)
+jq --argjson ids "$DEP_JSON" --arg ts "$TIMESTAMP" --arg fid "$FAILED_ID" '
+  .features |= map(
+    if (.id as $id | $ids | index($id)) then
+      .status = "blocked" | .notes = "Blocked: dependency \($fid) failed" | .blocked_at = $ts
+    else . end
+  ) | .updated_at = $ts
+' "$FEATURE_FILE" > "$TEMP_FILE"
+mv "$TEMP_FILE" "$FEATURE_FILE"
+
 for DEP_ID in $DEPENDENTS; do
-  NOTE="Blocked: dependency $FAILED_ID failed"
-  jq --arg id "$DEP_ID" --arg ts "$TIMESTAMP" --arg note "$NOTE" '
-    .features |= map(
-      if .id == $id then
-        .status = "blocked" | .notes = $note | .blocked_at = $ts
-      else . end
-    ) | .updated_at = $ts
-  ' "$FEATURE_FILE" > "$TEMP_FILE"
-  mv "$TEMP_FILE" "$FEATURE_FILE"
   echo "🚫 $DEP_ID blocked (depends on failed $FAILED_ID)"
 done

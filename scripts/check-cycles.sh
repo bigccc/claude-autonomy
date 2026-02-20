@@ -28,29 +28,35 @@ while IFS= read -r line; do
   DEPS["$id"]="$deps"
 done <<< "$GRAPH"
 
+declare -A VISITED_SET
+
 check_cycle() {
-  local start="$1" current="$2" visited="$3"
+  local start="$1" current="$2" path="$3"
   local dep_str="${DEPS[$current]:-}"
   [[ -z "$dep_str" ]] && return 1
 
   IFS=',' read -ra dep_list <<< "$dep_str"
   for dep in "${dep_list[@]}"; do
     if [[ "$dep" == "$start" ]]; then
-      echo "🔄 循环依赖: $visited -> $dep" >&2
+      echo "🔄 循环依赖: $path -> $dep" >&2
       return 0
     fi
-    if [[ "$visited" == *"$dep"* ]]; then
+    if [[ -n "${VISITED_SET[$dep]:-}" ]]; then
       continue
     fi
-    if check_cycle "$start" "$dep" "$visited -> $dep"; then
+    VISITED_SET["$dep"]=1
+    if check_cycle "$start" "$dep" "$path -> $dep"; then
       return 0
     fi
+    unset 'VISITED_SET[$dep]'
   done
   return 1
 }
 
 FOUND=0
 for id in "${!DEPS[@]}"; do
+  VISITED_SET=()
+  VISITED_SET["$id"]=1
   if check_cycle "$id" "$id" "$id"; then
     FOUND=1
   fi

@@ -75,5 +75,5 @@ Older entries are archived to `progress.archive.txt`. Only read the archive if y
 - One task at a time. Finish or fail before moving on.
 - Small, atomic commits. One commit per logical change.
 - Read before write. Always check existing code first.
-- Never modify feature_list.json structure, only update status fields.
+- Never manually edit feature_list.json — use the provided scripts (add-task.sh, edit-task.sh, remove-task.sh) or commands.
 - If unsure, write to progress.txt and move on. The next worker will see it.

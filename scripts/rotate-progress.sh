@@ -22,7 +22,7 @@ if [[ -f "$CONFIG_FILE" ]] && command -v jq &>/dev/null; then
   fi
 fi
 
-TOTAL_LINES=$(wc -l < "$PROGRESS_FILE" | tr -d ' ')
+TOTAL_LINES=$(( $(wc -l < "$PROGRESS_FILE") ))
 
 if [[ $TOTAL_LINES -le $MAX_LINES ]]; then
   exit 0

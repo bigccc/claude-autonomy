@@ -19,7 +19,7 @@ fi
 # Parse arguments
 TITLE=""
 DESCRIPTION=""
-PRIORITY=0
+PRIORITY=""
 DEPENDENCIES="[]"
 CRITERIA="[]"
 
@@ -61,7 +61,21 @@ NEXT_NUM=$(( ${LAST_ID#F} + 1 ))
 NEXT_ID=$(printf "F%03d" "$NEXT_NUM")
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-if [[ "$PRIORITY" -eq 0 ]]; then
+# Validate dependency IDs exist
+if [[ "$DEPENDENCIES" != "[]" ]]; then
+  EXISTING_IDS=$(jq -r '[.features[].id] | join(",")' "$FEATURE_FILE")
+  INVALID_IDS=$(echo "$DEPENDENCIES" | jq -r '.[]' | while read -r dep_id; do
+    if [[ ",$EXISTING_IDS," != *",$dep_id,"* ]]; then
+      echo "$dep_id"
+    fi
+  done)
+  if [[ -n "$INVALID_IDS" ]]; then
+    echo "❌ Unknown dependency IDs: $INVALID_IDS" >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "$PRIORITY" ]]; then
   PRIORITY=$NEXT_NUM
 fi
 

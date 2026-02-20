@@ -55,9 +55,17 @@ ln -s /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
 
 1. AI 作为无记忆的"轮班工人"，每次会话从文件恢复上下文
 2. `.autonomy/feature_list.json` 管理任务队列和状态
-3. `.autonomy/progress.txt` 作为会话间的交接日志（自动轮转，超限归档）
+3. `.autonomy/progress.txt` 作为会话间的交接日志（自动轮转，超限归档至 `progress.archive.txt`）
 4. Stop Hook 拦截退出，自动加载下一个任务
 5. 任务失败时自动传播，阻塞下游依赖
+
+## 安全机制
+
+- **并发安全** — 基于 mkdir 原子操作的文件锁，防止并发写入损坏 `feature_list.json`
+- **循环依赖检测** — DFS 遍历任务依赖图，发现循环时给出明确提示
+- **断点恢复** — 恢复 `in_progress` 任务前检查 `git status`，确认代码状态一致
+- **依赖验证** — 添加任务时校验依赖 ID 是否存在，无效 ID 直接报错
+- **失败传播** — 任务失败后批量标记下游依赖为 `blocked`，避免无效执行
 
 ## 替代运行方式
 

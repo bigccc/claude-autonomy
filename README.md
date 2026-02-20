@@ -21,9 +21,11 @@ ln -s /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
 # 1. 初始化
 /autocc:init my-project
 
-# 2. 添加任务
+# 2. 用自然语言描述需求，AI 自动拆解任务
+/autocc:plan 做一个用户系统，包括注册、登录、个人资料编辑，需要JWT认证
+
+# 3. 或手动添加单个任务
 /autocc:add "用户登录" "实现 JWT 登录接口" --priority 1 --criteria "返回 token" "错误处理"
-/autocc:add "用户注册" "实现注册接口" --priority 2 --depends F001
 
 # 3. 查看状态
 /autocc:status
@@ -40,7 +42,8 @@ ln -s /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
 | 命令 | 说明 |
 |------|------|
 | `/autocc:init [name]` | 初始化自主系统 |
-| `/autocc:add "title" "desc" [opts]` | 添加任务 |
+| `/autocc:plan <需求描述>` | AI 自动分析需求并拆解为任务 |
+| `/autocc:add "title" "desc" [opts]` | 手动添加单个任务 |
 | `/autocc:edit <id> [--title/--desc/--priority/--status]` | 编辑任务 |
 | `/autocc:remove <id> [--force]` | 删除任务 |
 | `/autocc:status` | 查看状态 |

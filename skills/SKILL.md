@@ -26,7 +26,8 @@ This skill enables autonomous development using a file-based state machine. The 
 
 ### Available Commands
 - `/autocc:init` — Initialize autonomy system in current project
-- `/autocc:add` — Add a task to the queue
+- `/autocc:plan` — Describe requirements in natural language, AI auto-decomposes into tasks
+- `/autocc:add` — Manually add a single task
 - `/autocc:edit` — Edit an existing task's fields
 - `/autocc:remove` — Remove a task from the queue
 - `/autocc:status` — View current progress

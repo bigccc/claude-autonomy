@@ -69,6 +69,7 @@ bash install.sh
 | `/autocc:next` | 执行下一个任务 |
 | `/autocc:run [--max-iterations N]` | 启动自主循环 |
 | `/autocc:stop` | 停止循环 |
+| `/autocc:reset [--hard] [--force]` | 重置系统（默认保留 pending 任务，--hard 清空全部） |
 
 ## 工作原理
 

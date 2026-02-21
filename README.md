@@ -85,21 +85,69 @@ done
 
 ## 通知配置
 
-在 `.autonomy/config.json` 中设置：
+任务完成、失败、超时、全部完成时自动发送通知。在 `.autonomy/config.json` 中配置 `notify_type` 和 `notify_webhook` 两个字段。`notify_webhook` 留空则不发送通知。
+
+手动测试：`scripts/notify.sh task_done "测试通知"`
+
+### 飞书 (Feishu)
+
+1. 在飞书群中添加「自定义机器人」，获取 Webhook 地址
+2. 配置：
 
 ```json
 {
-  "task_timeout_minutes": 30,
-  "notify_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/xxx",
-  "notify_type": "feishu"
+  "notify_type": "feishu",
+  "notify_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 }
 ```
 
-支持 `feishu`（飞书）、`dingtalk`（钉钉）、`wecom`（企业微信）、`serverchan`（Server酱）。`notify_webhook` 留空则不发送通知。
+### 钉钉 (DingTalk)
 
-Server酱配置时，`notify_webhook` 填写 SendKey（如 `SCTxxx` 或 `sctpNNNtXXX`），脚本会自动识别 URL 格式。
+1. 在钉钉群中添加「自定义机器人」，安全设置选择「自定义关键词」，添加关键词 `任务`（通知内容包含此关键词）
+2. 复制 Webhook 地址，配置：
 
-手动测试：`scripts/notify.sh task_done "测试通知"`
+```json
+{
+  "notify_type": "dingtalk",
+  "notify_webhook": "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}
+```
+
+### 企业微信 (WeCom)
+
+1. 在企业微信群中添加「群机器人」，获取 Webhook 地址
+2. 配置：
+
+```json
+{
+  "notify_type": "wecom",
+  "notify_webhook": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}
+```
+
+### Server酱 (ServerChan)
+
+1. 前往 [sct.ftqq.com](https://sct.ftqq.com/) 登录获取 SendKey
+2. SendKey 有两种格式：`SCTxxxxxxxx`（旧版）或 `sctpNNNtXXXXXX`（Turbo 版），脚本自动识别对应的推送 URL
+3. 配置时 `notify_webhook` 填写 SendKey（不是 URL）：
+
+```json
+{
+  "notify_type": "serverchan",
+  "notify_webhook": "SCTxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+}
+```
+
+Turbo 版示例：
+
+```json
+{
+  "notify_type": "serverchan",
+  "notify_webhook": "sctp168tXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+Server酱支持在微信、企业微信、钉钉、飞书等多个通道同时接收消息，具体通道在 Server酱控制台配置。
 
 ## 替代运行方式
 

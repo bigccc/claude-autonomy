@@ -188,31 +188,15 @@ if [[ -x "$PLUGIN_ROOT/scripts/rotate-progress.sh" ]]; then
   "$PLUGIN_ROOT/scripts/rotate-progress.sh" 2>/dev/null || true
 fi
 
-# Generate compact context
-COMPACT_CONTEXT=""
+# Generate compact context (file only, not inlined into prompt)
 if [[ -x "$COMPACT_SCRIPT" ]]; then
   "$COMPACT_SCRIPT" "$FEATURE_FILE" "$PROGRESS_FILE" 2>/dev/null || true
-  if [[ -f ".autonomy/context.compact.json" ]]; then
-    COMPACT_CONTEXT=$(cat ".autonomy/context.compact.json")
-  fi
 fi
 
 # Load role prompt
 ROLE_PROMPT="You are an autonomous shift worker. Follow the Autonomy Protocol strictly."
 if [[ -x "$LOAD_ROLE_SCRIPT" ]]; then
   ROLE_PROMPT=$("$LOAD_ROLE_SCRIPT" "$CURRENT_ROLE" 2>/dev/null || echo "$ROLE_PROMPT")
-fi
-
-# Fallback: if compact context failed, use legacy method
-if [[ -z "$COMPACT_CONTEXT" ]]; then
-  TASK_DETAIL=$(jq -r --arg id "$CURRENT_ID" '
-    .features[] | select(.id == $id) |
-    "Task \(.id): \(.title)\nDescription: \(.description)\nAcceptance Criteria: \(.acceptance_criteria | join("; "))\nAttempt: \(.attempt_count + 1)/\(.max_attempts)"
-  ' "$FEATURE_FILE")
-  RECENT_PROGRESS=""
-  if [[ -f "$PROGRESS_FILE" ]]; then
-    RECENT_PROGRESS=$(tail -20 "$PROGRESS_FILE")
-  fi
 fi
 
 # Update iteration
@@ -222,63 +206,31 @@ sed "s/^iteration:[[:space:]].*/iteration: $NEXT_ITERATION/" "$LOOP_STATE" > "$T
 mv "$TEMP_FILE" "$LOOP_STATE"
 
 # Build the prompt for the next iteration
-if [[ -n "$COMPACT_CONTEXT" ]]; then
-PROMPT=$(cat <<PROMPT_EOF
-$ROLE_PROMPT
-
-## Compact Context (auto-generated)
-$COMPACT_CONTEXT
-
-${GIT_WARNING:+## Git Status Warning
-$GIT_WARNING
-
-}## Instructions
-1. Read .autonomy/config.json for project settings
-2. The compact context above contains your current task details, dependency info, queue summary, and relevant progress
-3. If you need more details about other tasks, read .autonomy/feature_list.json
-4. If you need full progress history, read .autonomy/progress.txt
-5. Execute the current task, following all acceptance_criteria
-6. Verify your work (run tests/lint if configured)
-7. Update feature_list.json: set status to "done", set completed_at
-8. Append completion summary to progress.txt
-9. Git commit with format: feat({task_id}): {title}
-
-If the task fails, increment attempt_count. If attempt_count >= max_attempts, set status to "failed".
-If blocked by dependencies, set status to "blocked" and record the blocker.
-
-After finishing this task, exit normally. The loop will automatically assign the next task.
-PROMPT_EOF
-)
-else
-PROMPT=$(cat <<PROMPT_EOF
-$ROLE_PROMPT
+# NOTE: Do NOT inline compact context or task details into the prompt.
+# These may contain special characters that break shell heredoc or jq parsing.
+# Instead, instruct Claude to read the files directly.
+PROMPT="$ROLE_PROMPT
 
 ## Current Task
-$TASK_DETAIL
-
-## Recent Progress
-$RECENT_PROGRESS
-
-${GIT_WARNING:+## Git Status Warning
+Task $CURRENT_ID [$CURRENT_ROLE]: $CURRENT_TITLE
+${GIT_WARNING:+
+## Git Status Warning
 $GIT_WARNING
-
-}## Instructions
-1. Read .autonomy/progress.txt for full context
-2. Read .autonomy/feature_list.json for task details
-3. Read .autonomy/config.json for project settings
-4. Execute the task above, following all acceptance_criteria
+}
+## Instructions
+1. Read .autonomy/context.compact.json (if it exists) — it contains your current task details, dependency info, queue summary, and relevant progress
+2. Read .autonomy/config.json for project settings
+3. If compact context is not available, read .autonomy/feature_list.json and .autonomy/progress.txt instead
+4. Execute the current task, following all acceptance_criteria
 5. Verify your work (run tests/lint if configured)
-6. Update feature_list.json: set status to "done", set completed_at
+6. Update feature_list.json: set status to \"done\", set completed_at
 7. Append completion summary to progress.txt
 8. Git commit with format: feat({task_id}): {title}
 
-If the task fails, increment attempt_count. If attempt_count >= max_attempts, set status to "failed".
-If blocked by dependencies, set status to "blocked" and record the blocker.
+If the task fails, increment attempt_count. If attempt_count >= max_attempts, set status to \"failed\".
+If blocked by dependencies, set status to \"blocked\" and record the blocker.
 
-After finishing this task, exit normally. The loop will automatically assign the next task.
-PROMPT_EOF
-)
-fi
+CRITICAL: After finishing this task, you MUST exit the conversation. Do NOT wait or ask for confirmation. Just exit. The loop will automatically assign the next task."
 
 SYSTEM_MSG="🔄 Autonomy iteration $NEXT_ITERATION | Task: $CURRENT_ID [$CURRENT_ROLE] | /autocc:stop to cancel"
 

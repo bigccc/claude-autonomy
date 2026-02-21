@@ -24,6 +24,6 @@ Now begin working. Follow the Autonomy Protocol strictly:
 7. Append completion summary to progress.txt
 8. Git commit with format: feat({id}): {title}
 
-When you finish the task, exit normally. The Stop hook will automatically feed you the next task.
+When you finish the task, you MUST exit the conversation immediately. Do NOT wait, do NOT ask for confirmation, do NOT say "waiting for next task". Just exit. The Stop hook will automatically feed you the next task.
 
 CRITICAL: Follow the verification requirements. Never mark a task done without passing all acceptance criteria.

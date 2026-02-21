@@ -5,11 +5,18 @@ Claude Code 自主开发插件 — 基于文件状态机的"轮班工人"模式�
 ## 安装
 
 ```bash
-# 符号链接到 Claude Code 插件目录
-ln -sfn /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
+# 1. 克隆仓库
+git clone https://github.com/bigccc/claude-autonomy.git
+cd claude-autonomy
+
+# 2. 将命令安装到 Claude Code 全局命令目录（自动替换脚本路径）
+mkdir -p ~/.claude/commands/autocc
+for f in commands/*.md; do
+  sed "s|\${CLAUDE_PLUGIN_ROOT}|$(pwd)|g" "$f" > ~/.claude/commands/autocc/"$(basename "$f")"
+done
 ```
 
-将 `/path/to/claude-autonomy` 替换为本仓库的实际路径。安装后重启 Claude Code 即可使用 `/autocc:*` 命令。
+重启 Claude Code 即可使用 `/autocc:*` 命令。
 
 依赖：`jq`（`brew install jq`）
 
@@ -25,13 +32,13 @@ ln -sfn /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
 # 3. 或手动添加单个任务
 /autocc:add "用户登录" "实现 JWT 登录接口" --priority 1 --criteria "返回 token" "错误处理"
 
-# 3. 查看状态
+# 4. 查看状态
 /autocc:status
 
-# 4. 执行单个任务
+# 5. 执行单个任务
 /autocc:next
 
-# 5. 或启动自主循环
+# 6. 或启动自主循环
 /autocc:run --max-iterations 10
 ```
 

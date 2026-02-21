@@ -2,6 +2,12 @@
 
 Claude Code 自主开发插件 — 基于文件状态机的"轮班工人"模式，让 AI 无人值守地逐个完成任务队列。
 
+## 系统要求
+
+- **macOS** — 目前仅支持 macOS 系统（Linux/Windows 暂不支持）
+- **jq** — `brew install jq`
+- **Claude Code CLI** — 已安装并可正常使用
+
 ## 安装
 
 ```bash
@@ -21,8 +27,6 @@ bash install.sh
 重启 Claude Code 即可使用。
 
 卸载：`bash uninstall.sh`
-
-依赖：`jq`（`brew install jq`）
 
 ## 快速开始
 

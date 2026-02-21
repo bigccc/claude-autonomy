@@ -4,14 +4,12 @@ Claude Code 自主开发插件 — 基于文件状态机的"轮班工人"模式�
 
 ## 安装
 
-将此目录放到你的 Claude Code 插件路径下，或在项目中引用：
-
 ```bash
-# 方式一：符号链接到全局插件目录
-ln -s /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
-
-# 方式二：在项目 .claude/plugins.json 中引用
+# 符号链接到 Claude Code 插件目录
+ln -sfn /path/to/claude-autonomy ~/.claude/plugins/claude-autonomy
 ```
+
+将 `/path/to/claude-autonomy` 替换为本仓库的实际路径。安装后重启 Claude Code 即可使用 `/autocc:*` 命令。
 
 依赖：`jq`（`brew install jq`）
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Notification script for autonomy system
-# Sends webhook notifications to Feishu/DingTalk/WeCom
+# Sends webhook notifications to Feishu/DingTalk/WeCom/ServerChan
 #
 # Usage: notify.sh <event_type> <message>
 #   event_type: task_done | task_failed | all_done | task_timeout
@@ -61,6 +61,31 @@ case "$NOTIFY_TYPE" in
     ;;
   wecom)
     PAYLOAD=$(jq -n --arg text "$FULL_MESSAGE" '{msgtype:"text",text:{content:$text}}')
+    ;;
+  serverchan)
+    # ServerChan uses notify_webhook as the SendKey
+    SENDKEY="$WEBHOOK"
+    if [[ "$SENDKEY" =~ ^sctp([0-9]+)t ]]; then
+      SC_NUM="${BASH_REMATCH[1]}"
+      SC_URL="https://${SC_NUM}.push.ft07.com/send/${SENDKEY}.send"
+    else
+      SC_URL="https://sctapi.ftqq.com/${SENDKEY}.send"
+    fi
+    SC_TITLE="$PREFIX"
+    SC_DESP="$MESSAGE"
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+      -X POST \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "text=${SC_TITLE}&desp=${SC_DESP}" \
+      --connect-timeout 5 \
+      --max-time 10 \
+      "$SC_URL" 2>/dev/null || echo "000")
+    if [[ "$HTTP_CODE" == "200" ]]; then
+      echo "📨 Notification sent (serverchan): $EVENT_TYPE"
+    else
+      echo "⚠️  Notification failed (HTTP $HTTP_CODE)" >&2
+    fi
+    exit 0
     ;;
   *)
     echo "⚠️  Unknown notify_type: $NOTIFY_TYPE" >&2

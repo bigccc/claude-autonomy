@@ -90,7 +90,9 @@ The system can send webhook notifications for key events:
 
 Configure in `.autonomy/config.json`:
 - `notify_webhook`: webhook URL (leave empty to disable notifications)
-- `notify_type`: `"feishu"` | `"dingtalk"` | `"wecom"`
+- `notify_type`: `"feishu"` | `"dingtalk"` | `"wecom"` | `"serverchan"`
+
+For ServerChan, set `notify_webhook` to your SendKey (e.g., `SCTxxx` or `sctpNNNtXXX`). The script auto-detects the URL format.
 
 You can test manually: `scripts/notify.sh task_done "测试通知"`
 

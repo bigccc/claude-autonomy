@@ -95,7 +95,9 @@ done
 }
 ```
 
-支持 `feishu`（飞书）、`dingtalk`（钉钉）、`wecom`（企业微信）。`notify_webhook` 留空则不发送通知。
+支持 `feishu`（飞书）、`dingtalk`（钉钉）、`wecom`（企业微信）、`serverchan`（Server酱）。`notify_webhook` 留空则不发送通知。
+
+Server酱配置时，`notify_webhook` 填写 SendKey（如 `SCTxxx` 或 `sctpNNNtXXX`），脚本会自动识别 URL 格式。
 
 手动测试：`scripts/notify.sh task_done "测试通知"`
 

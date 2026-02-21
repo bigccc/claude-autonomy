@@ -69,7 +69,7 @@ jq --argjson current "$CURRENT_TASK" --argjson dep_ids "$DEP_IDS" '
   current_task: $current,
   dependency_tasks: [
     .features[] | select(.id as $id | $dep_ids | index($id) != null) |
-    {id, title, status, notes}
+    {id, title, status, role, notes}
   ],
   queue_summary: {
     total: (.features | length),

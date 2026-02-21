@@ -48,7 +48,8 @@ cat > "$AUTONOMY_DIR/config.json" <<EOF
   "task_timeout_minutes": 30,
   "notify_webhook": "",
   "notify_type": "feishu",
-  "context_compact": true
+  "context_compact": true,
+  "default_team_workflow": false
 }
 EOF
 

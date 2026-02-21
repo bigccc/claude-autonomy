@@ -161,9 +161,25 @@ def generate_compact_context():
     return ""
 
 
+def load_role_prompt(role="developer"):
+    """Load role prompt from templates/agents/<role>.md."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    plugin_root = os.path.dirname(script_dir)
+    role_file = os.path.join(plugin_root, "templates", "agents", f"{role}.md")
+    if not os.path.isfile(role_file):
+        role_file = os.path.join(plugin_root, "templates", "agents", "developer.md")
+    if os.path.isfile(role_file):
+        with open(role_file, "r") as f:
+            return f.read().strip()
+    return "You are an autonomous shift worker. Follow the Autonomy Protocol strictly."
+
+
 def build_prompt(task, progress_tail="", compact_context=""):
+    role = task.get("role", "developer")
+    role_prompt = load_role_prompt(role)
+
     if compact_context:
-        return f"""You are an autonomous shift worker. Follow the Autonomy Protocol strictly.
+        return f"""{role_prompt}
 
 ## Compact Context (auto-generated)
 {compact_context}
@@ -187,7 +203,7 @@ If blocked by dependencies, set status to "blocked" and record the blocker.
     criteria = "; ".join(task.get("acceptance_criteria", []))
     deps = ", ".join(task.get("dependencies", [])) or "none"
 
-    return f"""You are an autonomous shift worker. Follow the Autonomy Protocol strictly.
+    return f"""{role_prompt}
 
 ## Current Task
 Task {task['id']}: {task['title']}

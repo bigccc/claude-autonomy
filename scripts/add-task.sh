@@ -20,6 +20,7 @@ fi
 TITLE=""
 DESCRIPTION=""
 PRIORITY=""
+ROLE="developer"
 DEPENDENCIES="[]"
 CRITERIA="[]"
 
@@ -28,6 +29,8 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --priority)
       PRIORITY="$2"; shift 2 ;;
+    --role)
+      ROLE="$2"; shift 2 ;;
     --depends)
       DEPENDENCIES=$(echo "$2" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
       shift 2 ;;
@@ -86,6 +89,7 @@ jq --arg id "$NEXT_ID" \
    --arg title "$TITLE" \
    --arg desc "$DESCRIPTION" \
    --argjson priority "$PRIORITY" \
+   --arg role "$ROLE" \
    --argjson deps "$DEPENDENCIES" \
    --argjson criteria "$CRITERIA" \
    --arg ts "$TIMESTAMP" \
@@ -95,6 +99,7 @@ jq --arg id "$NEXT_ID" \
      description: $desc,
      status: "pending",
      priority: $priority,
+     role: $role,
      acceptance_criteria: $criteria,
      dependencies: $deps,
      assigned_at: null,
@@ -106,6 +111,7 @@ jq --arg id "$NEXT_ID" \
 mv "$TEMP_FILE" "$FEATURE_FILE"
 
 echo "✅ Task added: $NEXT_ID - $TITLE"
+echo "   Role: $ROLE"
 echo "   Priority: $PRIORITY"
 echo "   Description: $DESCRIPTION"
 echo "   Status: pending"

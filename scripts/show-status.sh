@@ -38,7 +38,7 @@ echo ""
 # Show current in-progress task
 if [[ $IN_PROGRESS -gt 0 ]]; then
   echo "Current task:"
-  jq -r '.features[] | select(.status == "in_progress") | "  \(.id) - \(.title)"' "$FEATURE_FILE"
+  jq -r '.features[] | select(.status == "in_progress") | "  \(.id) [\(.role // "developer")] - \(.title)"' "$FEATURE_FILE"
   echo ""
 fi
 
@@ -57,7 +57,7 @@ fi
 
 # Show all tasks
 echo "All tasks:"
-jq -r '.features[] | "  [\(.status | if . == "done" then "✅" elif . == "in_progress" then "🔄" elif . == "failed" then "❌" elif . == "blocked" then "🚫" else "⏳" end)] \(.id) - \(.title)"' "$FEATURE_FILE"
+jq -r '.features[] | "  [\(.status | if . == "done" then "✅" elif . == "in_progress" then "🔄" elif . == "failed" then "❌" elif . == "blocked" then "🚫" else "⏳" end)] \(.id) [\(.role // "developer")] - \(.title)"' "$FEATURE_FILE"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

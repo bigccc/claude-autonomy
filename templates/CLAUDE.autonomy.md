@@ -107,6 +107,44 @@ The system automatically generates `.autonomy/context.compact.json` before each 
 This reduces token usage by stripping unnecessary details (e.g., completed tasks' descriptions and criteria).
 Disable via `"context_compact": false` in config.json.
 
+## Agent Roles
+
+The system supports role-based Agent prompts. Each task can have a `role` field that determines the AI's behavior:
+
+### Available Roles
+
+- **architect** — Designs system architecture, API interfaces, data models. Does NOT write implementation code. Outputs design to task `notes` field.
+- **developer** (default) — Implements code following acceptance criteria. Reads architect's design notes from dependency tasks before coding.
+- **tester** — Verifies features meet acceptance criteria. Writes tests only, does NOT modify implementation code. Reports failures with detailed notes.
+
+### How It Works
+
+- Each task in `feature_list.json` can have a `role` field (e.g., `"role": "architect"`)
+- Tasks without a `role` field default to `"developer"` (backward compatible)
+- The role determines which prompt template is loaded from `templates/agents/<role>.md`
+- Role prompts define the agent's identity, goals, constraints, output format, and handoff protocol
+
+### Team Pipeline (`/autocc:plan --team`)
+
+Use `--team` flag with the plan command to auto-generate a multi-role pipeline:
+
+```
+/autocc:plan --team "实现用户认证系统"
+```
+
+This creates a pipeline: Architect → Developer → Tester, with proper dependencies:
+1. Architect task designs the architecture (no dependencies)
+2. Developer tasks implement code (depend on architect task)
+3. Tester task verifies the implementation (depends on developer tasks)
+
+The architect's design output (in task `notes`) is automatically available to downstream developers via dependency task info in the compact context.
+
+### Adding Tasks with Roles
+
+```
+/autocc:add "设计认证架构" "设计 JWT 认证系统的整体架构" --role architect --priority 1
+```
+
 ## Rules
 
 - One task at a time. Finish or fail before moving on.

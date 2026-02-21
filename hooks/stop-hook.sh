@@ -17,6 +17,7 @@ FEATURE_FILE=".autonomy/feature_list.json"
 PROGRESS_FILE=".autonomy/progress.txt"
 CONFIG_FILE=".autonomy/config.json"
 COMPACT_SCRIPT="$PLUGIN_ROOT/scripts/compact-context.sh"
+LOAD_ROLE_SCRIPT="$PLUGIN_ROOT/scripts/load-role.sh"
 NOTIFY_SCRIPT="$PLUGIN_ROOT/scripts/notify.sh"
 
 # Check if autonomous loop is active
@@ -117,6 +118,7 @@ fi
 CURRENT_ID=$(echo "$NEXT_TASK" | jq -r '.id')
 CURRENT_STATUS=$(echo "$NEXT_TASK" | jq -r '.status')
 CURRENT_TITLE=$(echo "$NEXT_TASK" | jq -r '.title')
+CURRENT_ROLE=$(echo "$NEXT_TASK" | jq -r '.role // "developer"')
 
 # Timeout check for in_progress tasks
 if [[ "$CURRENT_STATUS" == "in_progress" ]]; then
@@ -155,6 +157,7 @@ if [[ "$CURRENT_STATUS" == "in_progress" ]]; then
       CURRENT_ID=$(echo "$NEXT_TASK" | jq -r '.id')
       CURRENT_STATUS=$(echo "$NEXT_TASK" | jq -r '.status')
       CURRENT_TITLE=$(echo "$NEXT_TASK" | jq -r '.title')
+      CURRENT_ROLE=$(echo "$NEXT_TASK" | jq -r '.role // "developer"')
     fi
   fi
 fi
@@ -194,6 +197,12 @@ if [[ -x "$COMPACT_SCRIPT" ]]; then
   fi
 fi
 
+# Load role prompt
+ROLE_PROMPT="You are an autonomous shift worker. Follow the Autonomy Protocol strictly."
+if [[ -x "$LOAD_ROLE_SCRIPT" ]]; then
+  ROLE_PROMPT=$("$LOAD_ROLE_SCRIPT" "$CURRENT_ROLE" 2>/dev/null || echo "$ROLE_PROMPT")
+fi
+
 # Fallback: if compact context failed, use legacy method
 if [[ -z "$COMPACT_CONTEXT" ]]; then
   TASK_DETAIL=$(jq -r --arg id "$CURRENT_ID" '
@@ -215,7 +224,7 @@ mv "$TEMP_FILE" "$LOOP_STATE"
 # Build the prompt for the next iteration
 if [[ -n "$COMPACT_CONTEXT" ]]; then
 PROMPT=$(cat <<PROMPT_EOF
-You are an autonomous shift worker. Follow the Autonomy Protocol strictly.
+$ROLE_PROMPT
 
 ## Compact Context (auto-generated)
 $COMPACT_CONTEXT
@@ -242,7 +251,7 @@ PROMPT_EOF
 )
 else
 PROMPT=$(cat <<PROMPT_EOF
-You are an autonomous shift worker. Follow the Autonomy Protocol strictly.
+$ROLE_PROMPT
 
 ## Current Task
 $TASK_DETAIL
@@ -271,7 +280,7 @@ PROMPT_EOF
 )
 fi
 
-SYSTEM_MSG="🔄 Autonomy iteration $NEXT_ITERATION | Task: $CURRENT_ID | /autocc:stop to cancel"
+SYSTEM_MSG="🔄 Autonomy iteration $NEXT_ITERATION | Task: $CURRENT_ID [$CURRENT_ROLE] | /autocc:stop to cancel"
 
 # Output JSON to block the stop and feed next task prompt
 jq -n \

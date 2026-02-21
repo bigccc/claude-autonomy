@@ -1,12 +1,16 @@
 ---
 description: "Analyze requirements and automatically decompose into tasks with dependencies, priorities, and acceptance criteria"
-argument-hint: "<natural language requirement description>"
+argument-hint: "<natural language requirement description> [--team]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh:*)", "Read(.autonomy/*)", "Glob(**/*)", "Grep(**/*)", "Read(**)"]
 ---
 
 # Autonomous Task Planning
 
 You are a senior software architect performing task decomposition. Your goal is to transform the user's requirement into a precise, executable task queue.
+
+## Team Mode Detection
+
+Check if the user's input contains `--team` flag. If present, activate **Team Pipeline Mode** (see below).
 
 ## Step 1: Context Gathering
 
@@ -63,7 +67,7 @@ Each criterion must be:
 ## Step 4: Output Plan for Review
 
 Present the decomposed tasks in a clear table format BEFORE adding them. For each task show:
-- ID (proposed), Title, Description, Priority, Dependencies, Acceptance Criteria
+- ID (proposed), Title, Role (if team mode), Description, Priority, Dependencies, Acceptance Criteria
 
 Ask the user: **"确认添加这些任务吗？如需调整请告诉我。"**
 
@@ -72,7 +76,7 @@ Ask the user: **"确认添加这些任务吗？如需调整请告诉我。"**
 Only after user confirmation, add each task by executing:
 
 ```
-"${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh" "<title>" "<description>" --priority <N> [--depends <ids>] --criteria "<c1>" "<c2>" "<c3>"
+"${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh" "<title>" "<description>" --priority <N> [--role <role>] [--depends <ids>] --criteria "<c1>" "<c2>" "<c3>"
 ```
 
 Add tasks in dependency order (no-dependency tasks first).
@@ -80,3 +84,49 @@ Add tasks in dependency order (no-dependency tasks first).
 After all tasks are added, run a final status check and summarize what was created.
 
 CRITICAL: Do NOT skip the review step. Always show the plan and wait for user confirmation before adding tasks.
+
+---
+
+## Team Pipeline Mode (--team)
+
+When `--team` flag is detected, generate a multi-role pipeline with architect → developer → tester flow:
+
+### Pipeline Structure
+
+1. **Architect tasks** (lowest priority numbers = execute first)
+   - Role: `architect`
+   - Design system architecture, API interfaces, data models
+   - Output: technical design written to task `notes` field
+   - No implementation code
+
+2. **Developer tasks** (medium priority numbers)
+   - Role: `developer`
+   - Implement code based on architect's design
+   - Each developer task depends on its corresponding architect task
+   - Follow acceptance criteria precisely
+
+3. **Tester tasks** (highest priority numbers = execute last)
+   - Role: `tester`
+   - Verify implemented features meet acceptance criteria
+   - Each tester task depends on the developer tasks it verifies
+   - Write tests, do NOT modify implementation code
+
+### Example Pipeline
+
+For requirement "实现用户认证系统":
+
+```
+F001 [architect]  设计用户认证系统架构        (priority: 1, deps: none)
+F002 [developer]  实现 JWT 工具函数           (priority: 2, deps: F001)
+F003 [developer]  实现认证中间件              (priority: 3, deps: F001)
+F004 [developer]  实现登录/注册 API           (priority: 4, deps: F002,F003)
+F005 [tester]     验证用户认证系统            (priority: 5, deps: F002,F003,F004)
+```
+
+### Team Mode Rules
+
+- Always start with ONE architect task that covers the overall design
+- Developer tasks depend on the architect task and read its `notes` for design guidance
+- Group related tester tasks — one tester task can verify multiple developer tasks
+- Keep the pipeline lean: avoid creating too many fine-grained architect or tester tasks
+- If the requirement is simple (single feature), the pipeline can be as short as 3 tasks (1 architect + 1 developer + 1 tester)

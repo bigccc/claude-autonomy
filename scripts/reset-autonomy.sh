@@ -56,7 +56,7 @@ echo ""
 echo "Will also clean up: progress.txt, progress.archive.txt, context.compact.json, .lock, autonomy-loop.local.md"
 
 # --- Confirm ---
-if [[ "$FORCE" != true ]]; then
+if [[ "$FORCE" != true ]] && [[ -t 0 ]]; then
   echo ""
   read -r -p "Proceed? [y/N] " answer
   case "$answer" in

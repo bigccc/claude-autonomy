@@ -57,7 +57,7 @@ fi
 
 # Generate next ID
 LAST_ID=$(jq -r '.features[-1].id // "F000"' "$FEATURE_FILE")
-NEXT_NUM=$(( ${LAST_ID#F} + 1 ))
+NEXT_NUM=$(( 10#${LAST_ID#F} + 1 ))
 NEXT_ID=$(printf "F%03d" "$NEXT_NUM")
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 

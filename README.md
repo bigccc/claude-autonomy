@@ -9,14 +9,18 @@ Claude Code 自主开发插件 — 基于文件状态机的"轮班工人"模式�
 git clone https://github.com/bigccc/claude-autonomy.git
 cd claude-autonomy
 
-# 2. 将命令安装到 Claude Code 全局命令目录（自动替换脚本路径）
-mkdir -p ~/.claude/commands/autocc
-for f in commands/*.md; do
-  sed "s|\${CLAUDE_PLUGIN_ROOT}|$(pwd)|g" "$f" > ~/.claude/commands/autocc/"$(basename "$f")"
-done
+# 2. 一键安装（安装命令 + 注册 Stop Hook + 设置权限）
+bash install.sh
 ```
 
-重启 Claude Code 即可使用 `/autocc:*` 命令。
+安装脚本会自动完成：
+- 将 `/autocc:*` 命令安装到 `~/.claude/commands/autocc/`
+- 注册 Stop Hook 到 `~/.claude/settings.json`（自主循环的核心机制）
+- 设置所有脚本的可执行权限
+
+重启 Claude Code 即可使用。
+
+卸载：`bash uninstall.sh`
 
 依赖：`jq`（`brew install jq`）
 

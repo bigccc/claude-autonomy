@@ -146,7 +146,44 @@ def rotate_progress(path=".autonomy/progress.txt", config_path=".autonomy/config
         f.writelines(keep_lines)
 
 
-def build_prompt(task, progress_tail=""):
+def generate_compact_context():
+    """Call compact-context.sh and return the compact JSON string."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "compact-context.sh")
+    if os.path.isfile(script):
+        try:
+            subprocess.run([script], capture_output=True, timeout=10)
+            compact_path = ".autonomy/context.compact.json"
+            if os.path.exists(compact_path):
+                with open(compact_path, "r") as f:
+                    return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
+
+def build_prompt(task, progress_tail="", compact_context=""):
+    if compact_context:
+        return f"""You are an autonomous shift worker. Follow the Autonomy Protocol strictly.
+
+## Compact Context (auto-generated)
+{compact_context}
+
+## Instructions
+1. Read .autonomy/config.json for project settings
+2. The compact context above contains your current task details, dependency info, queue summary, and relevant progress
+3. If you need more details about other tasks, read .autonomy/feature_list.json
+4. If you need full progress history, read .autonomy/progress.txt
+5. Execute the current task, following all acceptance_criteria
+6. Verify your work (run tests/lint if configured)
+7. Update feature_list.json: set status to "done", set completed_at
+8. Append completion summary to progress.txt
+9. Git commit with format: feat({task['id']}): {task['title']}
+
+If the task fails, increment attempt_count. If attempt_count >= max_attempts, set status to "failed".
+If blocked by dependencies, set status to "blocked" and record the blocker.
+"""
+
+    # Fallback: legacy prompt
     criteria = "; ".join(task.get("acceptance_criteria", []))
     deps = ", ".join(task.get("dependencies", [])) or "none"
 
@@ -289,8 +326,12 @@ def main():
                 print(f"  ⚠️  {git_warning}")
 
         # Build prompt and run
-        progress_tail = get_progress_tail()
-        prompt = build_prompt(task, progress_tail)
+        compact_context = generate_compact_context()
+        if compact_context:
+            prompt = build_prompt(task, compact_context=compact_context)
+        else:
+            progress_tail = get_progress_tail()
+            prompt = build_prompt(task, progress_tail=progress_tail)
 
         append_progress(f"=== External Loop Iteration {iteration} | {ts} ===\nTask: {task_id} - {task_title}\nStatus: STARTED")
 

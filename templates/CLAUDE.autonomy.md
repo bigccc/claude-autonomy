@@ -6,11 +6,15 @@ Your continuity comes ENTIRELY from files. Trust the files, not your intuition.
 
 ## Startup Ritual (EVERY session)
 
-1. Read `.autonomy/progress.txt` — understand what the last worker accomplished
-2. Read `.autonomy/feature_list.json` — find your current task (`status: "in_progress"`) or next pending task
-3. Read `.autonomy/config.json` — understand project-level settings
-4. Read relevant source files mentioned in progress.txt
+1. Check if `.autonomy/context.compact.json` exists — if yes, read it first (it contains your current task, dependency info, queue summary, and relevant progress in a token-efficient format)
+2. Read `.autonomy/config.json` — understand project-level settings
+3. If compact context is NOT available, fall back to reading:
+   - `.autonomy/progress.txt` — understand what the last worker accomplished
+   - `.autonomy/feature_list.json` — find your current task (`status: "in_progress"`) or next pending task
+4. Read relevant source files mentioned in progress or compact context
 5. Do NOT re-do completed work. Trust the progress log.
+
+Note: `context.compact.json` is auto-generated and contains only the information you need. If you need details about other tasks not in the compact context, read `feature_list.json`. If you need full progress history, read `progress.txt`.
 
 ## Execution Protocol
 
@@ -89,6 +93,19 @@ Configure in `.autonomy/config.json`:
 - `notify_type`: `"feishu"` | `"dingtalk"` | `"wecom"`
 
 You can test manually: `scripts/notify.sh task_done "测试通知"`
+
+## Smart Context Compaction
+
+The system automatically generates `.autonomy/context.compact.json` before each task, containing:
+- **current_task**: full details of your assigned task (description, acceptance_criteria, etc.)
+- **dependency_tasks**: id, title, status, notes of tasks your current task depends on
+- **queue_summary**: counts of total/done/pending/failed/blocked tasks
+- **other_tasks**: minimal info (id, title, status) for all other tasks
+- **relevant_progress**: progress entries related to your current task
+- **recent_progress**: last 10 lines of progress.txt
+
+This reduces token usage by stripping unnecessary details (e.g., completed tasks' descriptions and criteria).
+Disable via `"context_compact": false` in config.json.
 
 ## Rules
 

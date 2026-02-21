@@ -21,6 +21,32 @@ import os
 from datetime import datetime, timezone
 
 
+def load_config(path=".autonomy/config.json"):
+    if os.path.exists(path):
+        try:
+            with open(path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return {}
+
+
+def get_task_timeout(config):
+    """Get task timeout in seconds from config."""
+    minutes = int(config.get("task_timeout_minutes", 30))
+    return minutes * 60
+
+
+def send_notify(event_type, message):
+    """Call notify.sh to send webhook notification."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notify.sh")
+    if os.path.isfile(script):
+        try:
+            subprocess.run([script, event_type, message], capture_output=True, timeout=15)
+        except Exception:
+            pass
+
+
 def load_feature_list(path=".autonomy/feature_list.json"):
     if not os.path.exists(path):
         print(f"Error: {path} not found. Run /autocc:init first.")
@@ -159,23 +185,24 @@ def get_progress_tail(path=".autonomy/progress.txt", lines=20):
     return "".join(all_lines[-lines:])
 
 
-def run_claude(prompt, model=None):
+def run_claude(prompt, model=None, timeout_seconds=1800):
     """Run Claude Code CLI with the given prompt."""
     cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
     if model:
         cmd.extend(["--model", model])
 
-    print(f"  Running: claude -p '...' --dangerously-skip-permissions")
+    timeout_min = timeout_seconds // 60
+    print(f"  Running: claude -p '...' --dangerously-skip-permissions (timeout: {timeout_min}m)")
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=1800,  # 30 min timeout per task
+            timeout=timeout_seconds,
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
-        return -1, "", "Timeout: task exceeded 30 minutes"
+        return -1, "", f"Timeout: task exceeded {timeout_min} minutes"
     except FileNotFoundError:
         print("Error: 'claude' CLI not found. Make sure Claude Code is installed.")
         sys.exit(1)
@@ -222,6 +249,9 @@ def main():
     print("Autonomy External Loop Driver")
     print("=" * 50)
 
+    config = load_config()
+    timeout_seconds = get_task_timeout(config)
+
     iteration = 0
     while True:
         iteration += 1
@@ -239,6 +269,7 @@ def main():
                 print(f"\nNo eligible tasks (remaining are blocked). Stopping.")
             else:
                 print(f"\nAll tasks completed!")
+                send_notify("all_done", "所有任务已完成！")
             break
 
         task_id = task["id"]
@@ -263,7 +294,7 @@ def main():
 
         append_progress(f"=== External Loop Iteration {iteration} | {ts} ===\nTask: {task_id} - {task_title}\nStatus: STARTED")
 
-        returncode, stdout, stderr = run_claude(prompt, model=args.model)
+        returncode, stdout, stderr = run_claude(prompt, model=args.model, timeout_seconds=timeout_seconds)
 
         # Check result
         data = load_feature_list()  # Reload, Claude may have modified it
@@ -271,9 +302,29 @@ def main():
 
         if current_task and current_task["status"] == "done":
             print(f"  Result: COMPLETED")
+            send_notify("task_done", f"任务 {task_id} ({task_title}) 已完成")
         elif current_task and current_task["status"] == "failed":
             print(f"  Result: FAILED (attempt {current_task.get('attempt_count', '?')}/{current_task.get('max_attempts', '?')})")
             propagate_failure(task_id)
+            send_notify("task_failed", f"任务 {task_id} ({task_title}) 失败")
+        elif returncode == -1:
+            # Timeout
+            print(f"  Result: TIMEOUT")
+            if current_task:
+                current_task["attempt_count"] = current_task.get("attempt_count", 0) + 1
+                max_attempts = current_task.get("max_attempts", 3)
+                if current_task["attempt_count"] >= max_attempts:
+                    current_task["status"] = "failed"
+                    print(f"  Max attempts reached. Marking as failed.")
+                    save_feature_list(data)
+                    propagate_failure(task_id)
+                    send_notify("task_failed", f"任务 {task_id} ({task_title}) 超时后失败")
+                else:
+                    current_task["status"] = "pending"
+                    save_feature_list(data)
+                    send_notify("task_timeout", f"任务 {task_id} ({task_title}) 超时，将重试")
+            git_rollback()
+            append_progress(f"Task: {task_id}\nStatus: TIMEOUT\nDetails: {stderr}\n===")
         elif returncode != 0:
             print(f"  Result: ERROR (exit code {returncode})")
             if stderr:
@@ -287,6 +338,7 @@ def main():
                     print(f"  Max attempts reached. Marking as failed.")
                     save_feature_list(data)
                     propagate_failure(task_id)
+                    send_notify("task_failed", f"任务 {task_id} ({task_title}) 错误后失败")
                 else:
                     current_task["status"] = "pending"
                     save_feature_list(data)

@@ -44,7 +44,10 @@ cat > "$AUTONOMY_DIR/config.json" <<EOF
   "commit_prefix": "feat",
   "test_command": "",
   "lint_command": "",
-  "progress_max_lines": 100
+  "progress_max_lines": 100,
+  "task_timeout_minutes": 30,
+  "notify_webhook": "",
+  "notify_type": "feishu"
 }
 EOF
 

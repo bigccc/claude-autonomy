@@ -15,11 +15,21 @@ source "$PLUGIN_ROOT/scripts/lock-utils.sh"
 LOOP_STATE=".claude/autonomy-loop.local.md"
 FEATURE_FILE=".autonomy/feature_list.json"
 PROGRESS_FILE=".autonomy/progress.txt"
+CONFIG_FILE=".autonomy/config.json"
+NOTIFY_SCRIPT="$PLUGIN_ROOT/scripts/notify.sh"
 
 # Check if autonomous loop is active
 if [[ ! -f "$LOOP_STATE" ]]; then
   exit 0
 fi
+
+# Send notification helper
+send_notify() {
+  local event="$1" message="$2"
+  if [[ -x "$NOTIFY_SCRIPT" ]]; then
+    "$NOTIFY_SCRIPT" "$event" "$message" 2>/dev/null || true
+  fi
+}
 
 # Parse frontmatter — extract value for a given key
 parse_frontmatter_value() {
@@ -62,10 +72,25 @@ if [[ ! -f "$FEATURE_FILE" ]]; then
   exit 0
 fi
 
-# Propagate failures to dependents
+# Propagate failures to dependents and notify
 FAILED_IDS=$(jq -r '[.features[] | select(.status == "failed") | .id] | .[]' "$FEATURE_FILE" 2>/dev/null || true)
 for FID in $FAILED_IDS; do
   "$PLUGIN_ROOT/scripts/propagate-failure.sh" "$FID" 2>/dev/null || true
+done
+# Notify for newly failed tasks (no completed_at means just failed in this cycle)
+for FID in $FAILED_IDS; do
+  COMPLETED_AT=$(jq -r --arg id "$FID" '.features[] | select(.id == $id) | .completed_at // ""' "$FEATURE_FILE" 2>/dev/null || echo "")
+  if [[ -z "$COMPLETED_AT" || "$COMPLETED_AT" == "null" ]]; then
+    FTITLE=$(jq -r --arg id "$FID" '.features[] | select(.id == $id) | .title' "$FEATURE_FILE" 2>/dev/null || echo "")
+    send_notify "task_failed" "任务 $FID ($FTITLE) 失败"
+    # Mark completed_at to avoid re-notifying
+    TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    TEMP_FILE=$(mktemp)
+    jq --arg id "$FID" --arg ts "$TIMESTAMP" '
+      .features |= map(if .id == $id then .completed_at = $ts else . end)
+    ' "$FEATURE_FILE" > "$TEMP_FILE"
+    mv "$TEMP_FILE" "$FEATURE_FILE"
+  fi
 done
 
 # Check for remaining tasks
@@ -73,6 +98,7 @@ PENDING=$(jq '[.features[] | select(.status == "pending" or .status == "in_progr
 if [[ $PENDING -eq 0 ]]; then
   echo "✅ All tasks completed! Autonomous loop finished."
   "$PLUGIN_ROOT/scripts/summary.sh" "$FEATURE_FILE" 2>/dev/null || true
+  send_notify "all_done" "所有任务已完成！"
   rm "$LOOP_STATE"
   exit 0
 fi
@@ -89,6 +115,48 @@ fi
 
 CURRENT_ID=$(echo "$NEXT_TASK" | jq -r '.id')
 CURRENT_STATUS=$(echo "$NEXT_TASK" | jq -r '.status')
+CURRENT_TITLE=$(echo "$NEXT_TASK" | jq -r '.title')
+
+# Timeout check for in_progress tasks
+if [[ "$CURRENT_STATUS" == "in_progress" ]]; then
+  TASK_TIMEOUT=30
+  if [[ -f "$CONFIG_FILE" ]]; then
+    TASK_TIMEOUT=$(jq -r '.task_timeout_minutes // 30' "$CONFIG_FILE")
+  fi
+  ASSIGNED_AT=$(echo "$NEXT_TASK" | jq -r '.assigned_at // ""')
+  if [[ -n "$ASSIGNED_AT" && "$ASSIGNED_AT" != "null" ]]; then
+    if date --version &>/dev/null 2>&1; then
+      ASSIGNED_EPOCH=$(date -d "$ASSIGNED_AT" +%s 2>/dev/null || echo 0)
+    else
+      ASSIGNED_EPOCH=$(date -jf "%Y-%m-%dT%H:%M:%SZ" "$ASSIGNED_AT" +%s 2>/dev/null || echo 0)
+    fi
+    NOW_EPOCH=$(date +%s)
+    ELAPSED_MIN=$(( (NOW_EPOCH - ASSIGNED_EPOCH) / 60 ))
+    if [[ $ASSIGNED_EPOCH -gt 0 && $ELAPSED_MIN -ge $TASK_TIMEOUT ]]; then
+      echo "⏰ Task $CURRENT_ID timed out after ${ELAPSED_MIN}m (limit: ${TASK_TIMEOUT}m). Marking as failed."
+      acquire_lock
+      TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      TEMP_FILE=$(mktemp)
+      jq --arg id "$CURRENT_ID" --arg ts "$TIMESTAMP" '
+        .features |= map(if .id == $id then .status = "failed" | .notes = "Timed out" | .completed_at = $ts else . end) |
+        .updated_at = $ts
+      ' "$FEATURE_FILE" > "$TEMP_FILE"
+      mv "$TEMP_FILE" "$FEATURE_FILE"
+      "$PLUGIN_ROOT/scripts/propagate-failure.sh" "$CURRENT_ID" 2>/dev/null || true
+      send_notify "task_timeout" "任务 $CURRENT_ID ($CURRENT_TITLE) 超时 (${ELAPSED_MIN}分钟)"
+      # Re-check for next task after timeout handling
+      NEXT_TASK=$("$PLUGIN_ROOT/scripts/get-next-task-json.sh" "$FEATURE_FILE" 2>/dev/null || true)
+      if [[ -z "$NEXT_TASK" || "$NEXT_TASK" == "null" ]]; then
+        echo "🚫 No eligible tasks after timeout handling. Stopping."
+        rm "$LOOP_STATE"
+        exit 0
+      fi
+      CURRENT_ID=$(echo "$NEXT_TASK" | jq -r '.id')
+      CURRENT_STATUS=$(echo "$NEXT_TASK" | jq -r '.status')
+      CURRENT_TITLE=$(echo "$NEXT_TASK" | jq -r '.title')
+    fi
+  fi
+fi
 
 # Check for uncommitted changes from possibly interrupted session
 GIT_WARNING=""

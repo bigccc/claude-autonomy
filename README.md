@@ -71,6 +71,24 @@ done
 - **断点恢复** — 恢复 `in_progress` 任务前检查 `git status`，确认代码状态一致
 - **依赖验证** — 添加任务时校验依赖 ID 是否存在，无效 ID 直接报错
 - **失败传播** — 任务失败后批量标记下游依赖为 `blocked`，避免无效执行
+- **超时保护** — 任务执行超过 `task_timeout_minutes`（默认 30 分钟）自动标记失败，防止 AI 卡死
+- **Webhook 通知** — 任务完成/失败/超时/全部完成时发送飞书/钉钉/企业微信通知
+
+## 通知配置
+
+在 `.autonomy/config.json` 中设置：
+
+```json
+{
+  "task_timeout_minutes": 30,
+  "notify_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/xxx",
+  "notify_type": "feishu"
+}
+```
+
+支持 `feishu`（飞书）、`dingtalk`（钉钉）、`wecom`（企业微信）。`notify_webhook` 留空则不发送通知。
+
+手动测试：`scripts/notify.sh task_done "测试通知"`
 
 ## 替代运行方式
 

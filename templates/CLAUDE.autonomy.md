@@ -70,6 +70,26 @@ Blockers: {any blockers or "None"}
 Note: progress.txt is automatically rotated when it exceeds `progress_max_lines` (default 100).
 Older entries are archived to `progress.archive.txt`. Only read the archive if you need historical context beyond what progress.txt provides.
 
+## Timeout Protection
+
+Each task has a maximum execution time controlled by `task_timeout_minutes` in config.json (default: 30 minutes).
+- In the Stop hook loop: if a task's `assigned_at` exceeds the timeout, it is automatically marked as `"failed"` and failure is propagated to dependents.
+- In the external loop (run_autonomy.py): the Claude CLI process is killed after the timeout, and the task is retried or marked as failed based on `max_attempts`.
+
+## Notifications
+
+The system can send webhook notifications for key events:
+- `task_done` — a task completed successfully
+- `task_failed` — a task failed (max attempts reached)
+- `task_timeout` — a task exceeded the time limit
+- `all_done` — all tasks in the queue are completed
+
+Configure in `.autonomy/config.json`:
+- `notify_webhook`: webhook URL (leave empty to disable notifications)
+- `notify_type`: `"feishu"` | `"dingtalk"` | `"wecom"`
+
+You can test manually: `scripts/notify.sh task_done "测试通知"`
+
 ## Rules
 
 - One task at a time. Finish or fail before moving on.

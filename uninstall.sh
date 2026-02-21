@@ -20,21 +20,20 @@ else
   echo "ℹ️  命令目录不存在，跳过"
 fi
 
-# 2. 注销 Stop Hook
+# 2. 注销 Stop Hook（按文件名匹配，不依赖完整路径，避免仓库移动后清不掉）
 if [[ -f "$SETTINGS_FILE" ]] && command -v jq &>/dev/null; then
-  HOOK_CMD="$PLUGIN_ROOT/hooks/stop-hook.sh"
   HAS_HOOK=$(jq -r '
     .hooks.Stop // [] | .[] | .hooks // [] | .[] |
-    select(.command == "'"$HOOK_CMD"'") | .command
+    select(.command | test("stop-hook\\.sh$")) | .command
   ' "$SETTINGS_FILE" 2>/dev/null || true)
 
   if [[ -n "$HAS_HOOK" ]]; then
     TEMP_FILE=$(mktemp)
-    jq --arg cmd "$HOOK_CMD" '
+    jq '
       .hooks.Stop //= [] |
       .hooks.Stop = [
         .hooks.Stop[] |
-        .hooks = [.hooks[] | select(.command != $cmd)] |
+        .hooks = [.hooks[] | select(.command | test("stop-hook\\.sh$") | not)] |
         select(.hooks | length > 0)
       ] |
       if .hooks.Stop == [] then del(.hooks.Stop) else . end |

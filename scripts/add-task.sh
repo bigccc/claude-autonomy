@@ -23,6 +23,7 @@ PRIORITY=""
 ROLE="developer"
 DEPENDENCIES="[]"
 CRITERIA="[]"
+PARENT_ID=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
@@ -31,6 +32,8 @@ while [[ $# -gt 0 ]]; do
       PRIORITY="$2"; shift 2 ;;
     --role)
       ROLE="$2"; shift 2 ;;
+    --parent)
+      PARENT_ID="$2"; shift 2 ;;
     --depends)
       DEPENDENCIES=$(echo "$2" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
       shift 2 ;;
@@ -54,15 +57,37 @@ TITLE="${POSITIONAL[0]:-}"
 DESCRIPTION="${POSITIONAL[1]:-$TITLE}"
 
 if [[ -z "$TITLE" ]]; then
-  echo "Usage: /autocc:add \"title\" \"description\" [--priority N] [--depends F001,F002] [--criteria \"c1\" \"c2\"]" >&2
+  echo "Usage: /autocc:add \"title\" \"description\" [--priority N] [--role ROLE] [--parent PARENT_ID] [--depends F001,F002] [--criteria \"c1\" \"c2\"]" >&2
   exit 1
 fi
 
-# Generate next ID
-LAST_ID=$(jq -r '.features[-1].id // "F000"' "$FEATURE_FILE")
-NEXT_NUM=$(( 10#${LAST_ID#F} + 1 ))
-NEXT_ID=$(printf "F%03d" "$NEXT_NUM")
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Generate task ID
+if [[ -n "$PARENT_ID" ]]; then
+  # Validate parent exists
+  PARENT_EXISTS=$(jq -r --arg id "$PARENT_ID" '[.features[] | select(.id == $id)] | length' "$FEATURE_FILE")
+  if [[ "$PARENT_EXISTS" -eq 0 ]]; then
+    echo "❌ Parent task $PARENT_ID not found." >&2
+    exit 1
+  fi
+  # Subtask ID: F001.1, F001.2, ...
+  LAST_SUB=$(jq -r --arg pid "$PARENT_ID" '
+    [.features[] | select(.parent_id == $pid) | .id |
+     split(".") | .[-1] | tonumber] | max // 0
+  ' "$FEATURE_FILE")
+  NEXT_SUB=$((LAST_SUB + 1))
+  NEXT_ID="${PARENT_ID}.${NEXT_SUB}"
+  # Inherit parent priority if not specified
+  if [[ -z "$PRIORITY" ]]; then
+    PRIORITY=$(jq -r --arg id "$PARENT_ID" '.features[] | select(.id == $id) | .priority' "$FEATURE_FILE")
+  fi
+else
+  # Top-level task ID: F001, F002, ...
+  LAST_ID=$(jq -r '[.features[] | select(.parent_id == null or .parent_id == "") | .id // "F000"] | map(select(test("^F[0-9]+$"))) | sort | last // "F000"' "$FEATURE_FILE")
+  NEXT_NUM=$(( 10#${LAST_ID#F} + 1 ))
+  NEXT_ID=$(printf "F%03d" "$NEXT_NUM")
+fi
 
 # Validate dependency IDs exist
 if [[ "$DEPENDENCIES" != "[]" ]]; then
@@ -79,17 +104,23 @@ if [[ "$DEPENDENCIES" != "[]" ]]; then
 fi
 
 if [[ -z "$PRIORITY" ]]; then
-  PRIORITY=$NEXT_NUM
+  NEXT_NUM_FOR_PRI=$(jq '.features | length + 1' "$FEATURE_FILE")
+  PRIORITY=$NEXT_NUM_FOR_PRI
 fi
 
 # Add task
 acquire_lock
 TEMP_FILE=$(mktemp)
+PARENT_ID_JSON="${PARENT_ID:-null}"
+if [[ "$PARENT_ID_JSON" != "null" ]]; then
+  PARENT_ID_JSON="\"$PARENT_ID_JSON\""
+fi
 jq --arg id "$NEXT_ID" \
    --arg title "$TITLE" \
    --arg desc "$DESCRIPTION" \
    --argjson priority "$PRIORITY" \
    --arg role "$ROLE" \
+   --argjson parent_id "$PARENT_ID_JSON" \
    --argjson deps "$DEPENDENCIES" \
    --argjson criteria "$CRITERIA" \
    --arg ts "$TIMESTAMP" \
@@ -100,6 +131,7 @@ jq --arg id "$NEXT_ID" \
      status: "pending",
      priority: $priority,
      role: $role,
+     parent_id: $parent_id,
      acceptance_criteria: $criteria,
      dependencies: $deps,
      assigned_at: null,
@@ -111,6 +143,9 @@ jq --arg id "$NEXT_ID" \
 mv "$TEMP_FILE" "$FEATURE_FILE"
 
 echo "✅ Task added: $NEXT_ID - $TITLE"
+if [[ -n "$PARENT_ID" ]]; then
+  echo "   Parent: $PARENT_ID"
+fi
 echo "   Role: $ROLE"
 echo "   Priority: $PRIORITY"
 echo "   Description: $DESCRIPTION"

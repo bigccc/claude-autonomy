@@ -1,6 +1,6 @@
 ---
 description: "Analyze requirements and automatically decompose into tasks with dependencies, priorities, and acceptance criteria"
-argument-hint: "<natural language requirement description> [--team]"
+argument-hint: "<natural language requirement description> [--team] [--deep]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh:*)", "Read(.autonomy/*)", "Glob(**/*)", "Grep(**/*)", "Read(**)"]
 ---
 
@@ -11,6 +11,10 @@ You are a senior software architect performing task decomposition. Your goal is 
 ## Team Mode Detection
 
 Check if the user's input contains `--team` flag. If present, activate **Team Pipeline Mode** (see below).
+
+## Deep Mode Detection
+
+Check if the user's input contains `--deep` flag. If present, activate **Deep Exploration Mode** (see Step 2.5 below) regardless of scale.
 
 ## Step 1: Context Gathering
 
@@ -37,6 +41,31 @@ Think through these dimensions:
 ## Step 3: Task Decomposition Rules
 
 Apply these principles strictly:
+
+### Scale Detection & Deep Exploration (Step 2.5)
+
+Before decomposing, assess the scale of the requirement:
+
+**Auto-detection**: If the requirement involves batch operations on a collection (e.g., "all APIs", "all endpoints", "all modules", "all pages", "all interfaces", "覆盖所有", "全部接口"), or if `--deep` flag is present, you MUST:
+
+1. **Explore first**: Scan and list ALL targets (API routes, endpoints, files, controllers, etc.)
+   - Use Glob and Grep to find all relevant files and endpoints
+   - Parse route definitions, controller files, or API specs
+2. **Count and categorize**: Group targets by module/directory/type, report counts per group
+3. **Present exploration summary** to the user before decomposing:
+   - Total count of targets found
+   - Breakdown by category/module (e.g., "outapi: 120 endpoints, adminapi: 85 endpoints, api: 300 endpoints")
+   - Proposed batch size per task (default: 5-15 targets per task)
+   - Estimated total number of tasks
+4. **Wait for user confirmation** on the exploration summary before proceeding to decomposition
+
+**Batch Decomposition Rules** (when target count > 15):
+- Each task should handle **5-15 targets** (e.g., 5-15 API endpoints per task)
+- Group by logical module/directory, but **split large modules into multiple tasks**
+- Name tasks specifically with batch info: `"测试 outapi 接口 (1/6): user, auth, profile"` not `"测试 outapi 接口"`
+- Include the **exact target list** in each task's description and acceptance_criteria
+- **NEVER** create a single task covering more than 15 targets
+- Use `--parent` with add-task.sh to create subtasks under a parent when decomposing a large logical group
 
 ### Granularity
 - Each task = ONE atomic deliverable that can be completed and verified in a single AI session

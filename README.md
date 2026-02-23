@@ -37,13 +37,19 @@ bash install.sh
 # 2. 用自然语言描述需求，AI 自动拆解任务
 /autocc:plan 做一个用户系统，包括注册、登录、个人资料编辑，需要JWT认证
 
+# 2b. 大规模需求用 --deep，先探索统计再细粒度拆解
+/autocc:plan --deep 自动化对照测试所有接口
+
 # 3. 或手动添加单个任务
 /autocc:add "用户登录" "实现 JWT 登录接口" --priority 1 --criteria "返回 token" "错误处理"
 
 # 3b. 添加带角色的任务
 /autocc:add "设计认证架构" "设计 JWT 认证系统架构" --role architect --priority 1
 
-# 3c. 用 --team 自动生成多角色流水线
+# 3c. 添加子任务（父任务自动由子任务驱动完成）
+/autocc:add "测试 user 接口" "测试 user 相关5个接口" --parent F001 --criteria "login通过" "register通过"
+
+# 3d. 用 --team 自动生成多角色流水线
 /autocc:plan --team 做一个用户系统，包括注册、登录、个人资料编辑
 
 # 4. 查看状态
@@ -61,8 +67,8 @@ bash install.sh
 | 命令 | 说明 |
 |------|------|
 | `/autocc:init [name]` | 初始化自主系统 |
-| `/autocc:plan <需求描述> [--team]` | AI 自动分析需求并拆解为任务（--team 生成多角色流水线） |
-| `/autocc:add "title" "desc" [opts]` | 手动添加任务（支持 --role architect/developer/tester） |
+| `/autocc:plan <需求描述> [--team] [--deep]` | AI 自动分析需求并拆解为任务（--team 多角色流水线，--deep 深度拆解） |
+| `/autocc:add "title" "desc" [opts]` | 手动添加任务（支持 --role, --parent, --depends, --criteria） |
 | `/autocc:edit <id> [--title/--desc/--priority/--status]` | 编辑任务 |
 | `/autocc:remove <id> [--force]` | 删除任务 |
 | `/autocc:status` | 查看状态 |
@@ -91,6 +97,9 @@ bash install.sh
 - **智能裁剪上下文** — 自动生成精简的 `context.compact.json`，只保留当前任务完整信息和队列摘要，大幅减少 token 消耗
 - **Agent 角色系统** — 支持 architect/developer/tester 三种角色，不同任务由不同角色提示词驱动，提升任务执行质量
 - **Team 自动流水线** — `/autocc:plan --team` 自动生成架构师→开发者→测试者的多角色任务流水线
+- **子任务机制** — 支持 `--parent` 创建子任务（ID 格式 F001.1），父任务由子任务驱动完成，子任务全部 done 时父任务自动标记 done，任一子任务 failed 时父任务标记 failed 并传播到下游
+- **深度拆解模式** — `/autocc:plan --deep` 先扫描统计所有目标（接口、文件等），再按 5-15 个目标/任务的粒度细分，适合大规模需求（如 1000+ 接口）
+- **执行时自动拆分** — AI 执行任务时发现范围过大，可自主拆分为子任务，无需人工干预
 
 ## 通知配置
 

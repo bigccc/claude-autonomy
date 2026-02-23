@@ -10,13 +10,20 @@ if [[ ! -f "$FEATURE_FILE" ]] || ! command -v jq &>/dev/null; then
   exit 0
 fi
 
-# Check in_progress first
-TASK=$(jq -r '[.features[] | select(.status == "in_progress")][0] // empty' "$FEATURE_FILE")
+# Find parent IDs that have subtasks (these should be skipped)
+HAS_CHILDREN=$(jq '[.features[] | select(.parent_id != null and .parent_id != "") | .parent_id] | unique' "$FEATURE_FILE")
+
+# Check in_progress first (but skip parents with subtasks)
+TASK=$(jq -r --argjson has_children "$HAS_CHILDREN" '
+  [.features[] | select(.status == "in_progress") |
+   select(.id as $id | $has_children | index($id) | not)][0] // empty
+' "$FEATURE_FILE")
 
 if [[ -z "$TASK" || "$TASK" == "null" ]]; then
   DONE_IDS=$(jq '[.features[] | select(.status == "done") | .id]' "$FEATURE_FILE")
-  TASK=$(jq --argjson done "$DONE_IDS" '
+  TASK=$(jq --argjson done "$DONE_IDS" --argjson has_children "$HAS_CHILDREN" '
     [.features[] | select(.status == "pending") |
+     select(.id as $id | $has_children | index($id) | not) |
      select((.dependencies | length == 0) or (.dependencies | all(. as $d | $done | index($d) != null)))] |
     sort_by(.priority) | .[0] // empty
   ' "$FEATURE_FILE")

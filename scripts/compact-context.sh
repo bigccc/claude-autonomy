@@ -67,6 +67,14 @@ DEP_IDS=$(echo "$CURRENT_TASK" | jq -r '.dependencies // []')
 jq --argjson current "$CURRENT_TASK" --argjson dep_ids "$DEP_IDS" '
 {
   current_task: $current,
+  parent_task: (if $current.parent_id then
+    [.features[] | select(.id == $current.parent_id)][0] // null |
+    if . then {id, title, description, notes} else null end
+  else null end),
+  sibling_tasks: (if $current.parent_id then
+    [.features[] | select(.parent_id == $current.parent_id and .id != $current.id) |
+     {id, title, status}]
+  else [] end),
   dependency_tasks: [
     .features[] | select(.id as $id | $dep_ids | index($id) != null) |
     {id, title, status, role, notes}

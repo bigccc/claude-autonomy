@@ -45,8 +45,10 @@ fi
 # Show next pending task
 if [[ $PENDING -gt 0 ]]; then
   DONE_IDS=$(jq '[.features[] | select(.status == "done") | .id]' "$FEATURE_FILE")
-  NEXT=$(jq -r --argjson done "$DONE_IDS" '
+  HAS_CHILDREN=$(jq '[.features[] | select(.parent_id != null and .parent_id != "") | .parent_id] | unique' "$FEATURE_FILE")
+  NEXT=$(jq -r --argjson done "$DONE_IDS" --argjson has_children "$HAS_CHILDREN" '
     [.features[] | select(.status == "pending") |
+     select(.id as $id | $has_children | index($id) | not) |
      select((.dependencies | length == 0) or (.dependencies | all(. as $d | $done | index($d) != null)))] |
     sort_by(.priority) | .[0] // empty |
     "\(.id) - \(.title)"
@@ -55,9 +57,23 @@ if [[ $PENDING -gt 0 ]]; then
   echo ""
 fi
 
-# Show all tasks
+# Show all tasks (with subtask indentation)
 echo "All tasks:"
-jq -r '.features[] | "  [\(.status | if . == "done" then "✅" elif . == "in_progress" then "🔄" elif . == "failed" then "❌" elif . == "blocked" then "🚫" else "⏳" end)] \(.id) [\(.role // "developer")] - \(.title)"' "$FEATURE_FILE"
+jq -r '
+  def status_icon:
+    if . == "done" then "✅"
+    elif . == "in_progress" then "🔄"
+    elif . == "failed" then "❌"
+    elif . == "blocked" then "🚫"
+    else "⏳" end;
+
+  .features as $all |
+  [$all[] | select(.parent_id == null or .parent_id == "")] | sort_by(.priority) |
+  .[] |
+  "  [\(.status | status_icon)] \(.id) [\(.role // "developer")] - \(.title)",
+  (.id as $pid | [$all[] | select(.parent_id == $pid)] | sort_by(.id) | .[] |
+    "    [\(.status | status_icon)] \(.id) - \(.title)")
+' "$FEATURE_FILE"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

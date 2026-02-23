@@ -95,6 +95,11 @@ for FID in $FAILED_IDS; do
   fi
 done
 
+# Sync parent task status based on subtasks
+if [[ -x "$PLUGIN_ROOT/scripts/check-subtasks.sh" ]]; then
+  "$PLUGIN_ROOT/scripts/check-subtasks.sh" "$FEATURE_FILE" 2>/dev/null || true
+fi
+
 # Check for remaining tasks
 PENDING=$(jq '[.features[] | select(.status == "pending" or .status == "in_progress")] | length' "$FEATURE_FILE")
 if [[ $PENDING -eq 0 ]]; then

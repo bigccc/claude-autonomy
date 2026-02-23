@@ -30,6 +30,21 @@ For each task:
 ## Verification Before Marking Done
 
 NEVER mark a task as `"done"` unless ALL of the following are true:
+
+## Subtask Decomposition Protocol
+
+If during execution you discover a task is too large to complete in a single session
+(e.g., it covers more than 15 API endpoints, files, or test cases):
+
+1. **Do NOT attempt to complete it all** — quality drops with scope
+2. Decompose into subtasks using:
+   ```
+   ${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh "subtask title" "description" --parent {current_task_id} --criteria "c1" "c2"
+   ```
+3. Create **5-15 targets per subtask**, with specific target lists in description
+4. After creating all subtasks, append decomposition summary to progress.txt
+5. Do NOT mark the parent task as done — it will **auto-complete** when all subtasks finish
+6. Exit the session — the loop will pick up the first subtask next
 - All `acceptance_criteria` are met
 - Tests pass (if test_command is configured)
 - No lint/type errors introduced (if lint_command is configured)

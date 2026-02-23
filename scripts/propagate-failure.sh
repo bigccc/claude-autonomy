@@ -29,16 +29,21 @@ if [[ -z "$DEPENDENTS" ]]; then
   exit 0
 fi
 
+# Get the failed task's notes for detailed reason
+FAILED_NOTES=$(jq -r --arg id "$FAILED_ID" '.features[] | select(.id == $id) | .notes // ""' "$FEATURE_FILE" 2>/dev/null || echo "")
+
 acquire_lock
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 TEMP_FILE=$(mktemp)
 
 # Batch block all dependents in a single jq call
 DEP_JSON=$(echo "$DEPENDENTS" | jq -R . | jq -s .)
-jq --argjson ids "$DEP_JSON" --arg ts "$TIMESTAMP" --arg fid "$FAILED_ID" '
+jq --argjson ids "$DEP_JSON" --arg ts "$TIMESTAMP" --arg fid "$FAILED_ID" --arg fnotes "$FAILED_NOTES" '
   .features |= map(
     if (.id as $id | $ids | index($id)) then
-      .status = "blocked" | .notes = "Blocked: dependency \($fid) failed" | .blocked_at = $ts
+      .status = "blocked" |
+      .notes = "Blocked: dependency \($fid) failed\(if $fnotes != "" then " — " + $fnotes else "" end)" |
+      .blocked_at = $ts
     else . end
   ) | .updated_at = $ts
 ' "$FEATURE_FILE" > "$TEMP_FILE"

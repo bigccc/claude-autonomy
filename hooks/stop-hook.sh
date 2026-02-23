@@ -86,12 +86,14 @@ for FID in $FAILED_IDS; do
     FTITLE=$(jq -r --arg id "$FID" '.features[] | select(.id == $id) | .title' "$FEATURE_FILE" 2>/dev/null || echo "")
     send_notify "task_failed" "任务 $FID ($FTITLE) 失败"
     # Mark completed_at to avoid re-notifying
+    acquire_lock
     TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     TEMP_FILE=$(mktemp)
     jq --arg id "$FID" --arg ts "$TIMESTAMP" '
       .features |= map(if .id == $id then .completed_at = $ts else . end)
     ' "$FEATURE_FILE" > "$TEMP_FILE"
     mv "$TEMP_FILE" "$FEATURE_FILE"
+    release_lock
   fi
 done
 
@@ -150,6 +152,7 @@ if [[ "$CURRENT_STATUS" == "in_progress" ]]; then
         .updated_at = $ts
       ' "$FEATURE_FILE" > "$TEMP_FILE"
       mv "$TEMP_FILE" "$FEATURE_FILE"
+      release_lock
       "$PLUGIN_ROOT/scripts/propagate-failure.sh" "$CURRENT_ID" 2>/dev/null || true
       send_notify "task_timeout" "任务 $CURRENT_ID ($CURRENT_TITLE) 超时 (${ELAPSED_MIN}分钟)"
       # Re-check for next task after timeout handling
@@ -186,6 +189,7 @@ if [[ "$CURRENT_STATUS" != "in_progress" ]]; then
     .updated_at = $ts
   ' "$FEATURE_FILE" > "$TEMP_FILE"
   mv "$TEMP_FILE" "$FEATURE_FILE"
+  release_lock
 fi
 
 # Rotate progress.txt if needed
@@ -195,7 +199,7 @@ fi
 
 # Generate compact context (file only, not inlined into prompt)
 if [[ -x "$COMPACT_SCRIPT" ]]; then
-  "$COMPACT_SCRIPT" "$FEATURE_FILE" "$PROGRESS_FILE" 2>/dev/null || true
+  "$COMPACT_SCRIPT" "$FEATURE_FILE" "$PROGRESS_FILE" "$CURRENT_ID" 2>/dev/null || true
 fi
 
 # Load role prompt

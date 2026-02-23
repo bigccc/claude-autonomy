@@ -27,17 +27,22 @@ if [[ -f "$CONFIG_FILE" ]]; then
   fi
 fi
 
-# Find current task (in_progress first, then next pending)
+# Find current task — reuse get-next-task-json.sh for consistent logic
+# (handles subtask parent skipping, dependency checks, priority sorting)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CURRENT_TASK=$(jq '[.features[] | select(.status == "in_progress")][0] // null' "$FEATURE_FILE")
+TASK_ID="${3:-}"
 
-if [[ "$CURRENT_TASK" == "null" ]]; then
-  DONE_IDS=$(jq '[.features[] | select(.status == "done") | .id]' "$FEATURE_FILE")
-  CURRENT_TASK=$(jq --argjson done "$DONE_IDS" '
-    [.features[] | select(.status == "pending") |
-     select((.dependencies | length == 0) or (.dependencies | all(. as $d | $done | index($d) != null)))] |
-    sort_by(.priority) | .[0] // null
-  ' "$FEATURE_FILE")
+if [[ -n "$TASK_ID" ]]; then
+  # Explicit task ID passed — look it up directly
+  CURRENT_TASK=$(jq --arg id "$TASK_ID" '[.features[] | select(.id == $id)][0] // null' "$FEATURE_FILE")
+else
+  # Use shared get-next-task logic
+  NEXT_JSON=$("$SCRIPT_DIR/get-next-task-json.sh" "$FEATURE_FILE" 2>/dev/null || true)
+  if [[ -n "$NEXT_JSON" && "$NEXT_JSON" != "null" ]]; then
+    CURRENT_TASK="$NEXT_JSON"
+  else
+    CURRENT_TASK="null"
+  fi
 fi
 
 if [[ "$CURRENT_TASK" == "null" ]]; then
@@ -101,11 +106,21 @@ jq --argjson current "$CURRENT_TASK" --argjson dep_ids "$DEP_IDS" '
 RELEVANT_PROGRESS=""
 RECENT_PROGRESS=""
 
+# Read configurable line limits
+RECENT_LINES=20
+RELEVANT_LINES=30
+if [[ -f "$CONFIG_FILE" ]] && command -v jq &>/dev/null; then
+  CONFIGURED_RECENT=$(jq -r '.compact_recent_progress_lines // empty' "$CONFIG_FILE" 2>/dev/null || true)
+  CONFIGURED_RELEVANT=$(jq -r '.compact_relevant_progress_lines // empty' "$CONFIG_FILE" 2>/dev/null || true)
+  [[ -n "$CONFIGURED_RECENT" && "$CONFIGURED_RECENT" =~ ^[0-9]+$ ]] && RECENT_LINES=$CONFIGURED_RECENT
+  [[ -n "$CONFIGURED_RELEVANT" && "$CONFIGURED_RELEVANT" =~ ^[0-9]+$ ]] && RELEVANT_LINES=$CONFIGURED_RELEVANT
+fi
+
 if [[ -f "$PROGRESS_FILE" ]]; then
   # Extract lines related to current task (grep task ID)
-  RELEVANT_PROGRESS=$(grep -i "$CURRENT_ID" "$PROGRESS_FILE" 2>/dev/null | tail -20 || true)
-  # Last 10 lines for general context
-  RECENT_PROGRESS=$(tail -10 "$PROGRESS_FILE" 2>/dev/null || true)
+  RELEVANT_PROGRESS=$(grep -i "$CURRENT_ID" "$PROGRESS_FILE" 2>/dev/null | tail -"$RELEVANT_LINES" || true)
+  # Recent lines for general context
+  RECENT_PROGRESS=$(tail -"$RECENT_LINES" "$PROGRESS_FILE" 2>/dev/null || true)
 fi
 
 # Merge progress and project index into the JSON

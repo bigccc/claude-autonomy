@@ -35,6 +35,15 @@ fi
 WEBHOOK=$(jq -r '.notify_webhook // ""' "$CONFIG_FILE")
 NOTIFY_TYPE=$(jq -r '.notify_type // "feishu"' "$CONFIG_FILE")
 
+# Log file for notification history
+NOTIFY_LOG="${CONFIG_FILE%/*}/notify.log"
+
+# Logging helper
+log_notify() {
+  local status="$1" detail="$2"
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] [$status] event=$EVENT_TYPE type=$NOTIFY_TYPE $detail" >> "$NOTIFY_LOG" 2>/dev/null || true
+}
+
 # No webhook configured — silently skip
 if [[ -z "$WEBHOOK" ]]; then
   exit 0
@@ -82,8 +91,10 @@ case "$NOTIFY_TYPE" in
       "$SC_URL" 2>/dev/null || echo "000")
     if [[ "$HTTP_CODE" == "200" ]]; then
       echo "📨 Notification sent (serverchan): $EVENT_TYPE"
+      log_notify "OK" "http=$HTTP_CODE msg=$MESSAGE"
     else
       echo "⚠️  Notification failed (HTTP $HTTP_CODE)" >&2
+      log_notify "FAIL" "http=$HTTP_CODE msg=$MESSAGE"
     fi
     exit 0
     ;;
@@ -104,8 +115,10 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
 
 if [[ "$HTTP_CODE" == "200" ]]; then
   echo "📨 Notification sent ($NOTIFY_TYPE): $EVENT_TYPE"
+  log_notify "OK" "http=$HTTP_CODE msg=$MESSAGE"
 else
   echo "⚠️  Notification failed (HTTP $HTTP_CODE)" >&2
+  log_notify "FAIL" "http=$HTTP_CODE msg=$MESSAGE"
 fi
 
 exit 0

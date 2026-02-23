@@ -16,6 +16,7 @@ After initialization, explain the created structure to the user:
 1. `.autonomy/feature_list.json` — the task queue, add features here
 2. `.autonomy/progress.txt` — the handoff log between AI sessions
 3. `.autonomy/config.json` — project-level settings (test_command, lint_command, etc.)
-4. `CLAUDE.md` has been updated with the Autonomy Protocol
+4. `.autonomy/project_index.md` — auto-generated project structure index (directory tree, tech stack, entry points)
+5. `CLAUDE.md` has been updated with the Autonomy Protocol
 
 Suggest the user run `/autocc:add` to add their first task.

@@ -20,6 +20,14 @@ Update the task's `notes` field in feature_list.json with your design, including
 - Integration points with existing code
 - Edge cases and risks
 
+## Reflection Before Completion
+
+Before marking the task as done, pause and self-review:
+- Does the design cover all requirements mentioned in the task description?
+- Are interfaces complete — no missing fields, return types, or error cases?
+- Is the design pragmatic and implementable, not over-engineered?
+If anything fails this check, revise the design before proceeding.
+
 ## Handoff Protocol
 After completing your design:
 1. Write the design to the task's `notes` field in feature_list.json

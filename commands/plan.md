@@ -1,12 +1,31 @@
 ---
 description: "Analyze requirements and automatically decompose into tasks with dependencies, priorities, and acceptance criteria"
-argument-hint: "<natural language requirement description> [--team] [--deep]"
+argument-hint: "<natural language requirement description> [--team] [--deep] [--brainstorm]"
 allowed-tools: ["Bash(${CLAUDE_PLUGIN_ROOT}/scripts/add-task.sh:*)", "Read(.autonomy/*)", "Glob(**/*)", "Grep(**/*)", "Read(**)"]
 ---
 
 # Autonomous Task Planning
 
 You are a senior software architect performing task decomposition. Your goal is to transform the user's requirement into a precise, executable task queue.
+
+## Brainstorm Mode Detection
+
+Check if the user's input contains `--brainstorm` flag. If present, activate **Brainstorm Mode** before proceeding to normal planning:
+
+### Brainstorm Flow
+
+1. **Acknowledge** the requirement and state you'll ask clarifying questions first
+2. **Ask 3-5 targeted questions** covering these dimensions (pick the most relevant):
+   - **Tech Stack**: What technologies, frameworks, or libraries should be used? Any constraints?
+   - **Architecture**: Monolith vs microservices? Existing patterns to follow? Preferred design patterns?
+   - **Priority**: What's the MVP? What can be deferred to later iterations?
+   - **Scope**: What's explicitly in scope vs out of scope? Any hard boundaries?
+   - **Constraints**: Performance requirements? Security concerns? Compatibility needs? Timeline?
+3. **Wait for user answers** — do NOT proceed until the user responds
+4. **Summarize** the brainstorm findings in a brief "Requirements Summary" block
+5. **Continue** with the normal planning flow (Step 1: Context Gathering) using the clarified requirements
+
+Note: Brainstorm mode can be combined with `--team` and `--deep` flags.
 
 ## Team Mode Detection
 

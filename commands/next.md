@@ -11,15 +11,11 @@ Get the next eligible task:
 "${CLAUDE_PLUGIN_ROOT}/scripts/next-task.sh"
 ```
 
-Now follow the Autonomy Protocol to execute this single task:
+Now follow the Autonomy Protocol's 4-phase execution:
 
-1. Read `.autonomy/progress.txt` — understand context from previous sessions
-2. Read `.autonomy/feature_list.json` — get full details of the assigned task
-3. Read `.autonomy/config.json` — get project settings
-4. Implement the task, following all acceptance_criteria
-5. Verify your work (run test_command and lint_command if configured)
-6. Update feature_list.json: set status to "done", set completed_at
-7. Append completion summary to progress.txt
-8. Git commit with format: feat({id}): {title}
+1. **Analyze**: Read `.autonomy/progress.txt`, `.autonomy/feature_list.json`, `.autonomy/config.json` — understand context, read related source files, identify affected areas
+2. **Design**: Plan your approach, consider edge cases, write brief plan to progress.txt
+3. **Implement**: Write code following the plan, commit with format: feat({id}): {title}
+4. **Verify**: Run test_command/lint_command if configured, check all acceptance_criteria, set status to "done", append completion summary to progress.txt
 
 This is a single-task execution. After completing, report the result to the user.

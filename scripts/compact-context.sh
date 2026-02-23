@@ -54,6 +54,7 @@ if [[ "$CURRENT_TASK" == "null" ]]; then
       in_progress: ([.features[] | select(.status == "in_progress")] | length)
     },
     other_tasks: [.features[] | {id, title, status}],
+    execution_protocol: "4 phases: Analyze (read code, understand context) → Design (plan approach, write to progress.txt) → Implement (write code, commit) → Verify (test, lint, check acceptance_criteria, mark done)",
     relevant_progress: "",
     recent_progress: ""
   }' "$FEATURE_FILE" > "$OUTPUT_FILE"
@@ -87,6 +88,7 @@ jq --argjson current "$CURRENT_TASK" --argjson dep_ids "$DEP_IDS" '
     blocked: ([.features[] | select(.status == "blocked")] | length),
     in_progress: ([.features[] | select(.status == "in_progress")] | length)
   },
+  execution_protocol: "4 phases: Analyze (read code, understand context) → Design (plan approach, write to progress.txt) → Implement (write code, commit) → Verify (test, lint, check acceptance_criteria, mark done)",
   other_tasks: [
     .features[] | select(.id != $current.id) |
     if .status == "done" then {id, title, status}
@@ -106,10 +108,17 @@ if [[ -f "$PROGRESS_FILE" ]]; then
   RECENT_PROGRESS=$(tail -10 "$PROGRESS_FILE" 2>/dev/null || true)
 fi
 
-# Merge progress into the JSON
+# Merge progress and project index into the JSON
 TEMP_FILE=$(mktemp)
-jq --arg rel "$RELEVANT_PROGRESS" --arg rec "$RECENT_PROGRESS" '
+
+PROJECT_INDEX=""
+if [[ -f ".autonomy/project_index.md" ]]; then
+  PROJECT_INDEX=$(head -80 ".autonomy/project_index.md" 2>/dev/null || true)
+fi
+
+jq --arg rel "$RELEVANT_PROGRESS" --arg rec "$RECENT_PROGRESS" --arg idx "$PROJECT_INDEX" '
   .relevant_progress = $rel |
-  .recent_progress = $rec
+  .recent_progress = $rec |
+  .project_index = $idx
 ' "$OUTPUT_FILE" > "$TEMP_FILE"
 mv "$TEMP_FILE" "$OUTPUT_FILE"

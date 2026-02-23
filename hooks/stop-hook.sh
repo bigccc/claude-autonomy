@@ -226,11 +226,11 @@ $GIT_WARNING
 1. Read .autonomy/context.compact.json (if it exists) — it contains your current task details, dependency info, queue summary, and relevant progress
 2. Read .autonomy/config.json for project settings
 3. If compact context is not available, read .autonomy/feature_list.json and .autonomy/progress.txt instead
-4. Execute the current task, following all acceptance_criteria
-5. Verify your work (run tests/lint if configured)
-6. Update feature_list.json: set status to \"done\", set completed_at
-7. Append completion summary to progress.txt
-8. Git commit with format: feat({task_id}): {title}
+4. Follow the 4-phase Execution Protocol:
+   - Phase 1 Analyze: read related code, understand context, identify affected files
+   - Phase 2 Design: plan approach, write brief plan to progress.txt
+   - Phase 3 Implement: write code following the plan
+   - Phase 4 Verify: run tests/lint, check all acceptance_criteria, mark done, commit
 
 If the task fails, increment attempt_count. If attempt_count >= max_attempts, set status to \"failed\".
 If blocked by dependencies, set status to \"blocked\" and record the blocker.

@@ -18,6 +18,14 @@ Verify that implemented features meet all acceptance criteria. Write tests, run 
 - If all tests pass: set task status to `"done"`
 - If issues found: detailed bug report in task `notes`, set status to `"failed"`
 
+## Reflection Before Completion
+
+Before marking the task as done, pause and self-review:
+- Is test coverage sufficient? Are happy path, error cases, and edge cases all covered?
+- Are assertions specific and meaningful (not just "no error thrown")?
+- Are tests deterministic — no flaky timing, random data, or order dependencies?
+If anything fails this check, add more tests before proceeding.
+
 ## Handoff Protocol
 After completing verification:
 1. Run all relevant tests

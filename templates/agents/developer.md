@@ -17,6 +17,15 @@ Implement the assigned task following acceptance criteria precisely. Write minim
 - Update feature_list.json: set status to `"done"`, set `completed_at`
 - Append completion summary to progress.txt
 
+## Reflection Before Completion
+
+Before marking the task as done, pause and self-review:
+- Re-read each acceptance criterion — is it genuinely met?
+- Did you handle edge cases (empty inputs, error paths, boundary conditions)?
+- Is the code minimal and consistent with project conventions?
+- Note any technical debt or shortcuts in progress.txt
+If anything fails this check, fix it before proceeding.
+
 ## Handoff Protocol
 After completing implementation:
 1. Verify your work (run test_command and lint_command if configured)

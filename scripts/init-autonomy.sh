@@ -53,6 +53,11 @@ cat > "$AUTONOMY_DIR/config.json" <<EOF
 }
 EOF
 
+# Generate project structure index
+if [[ -x "$PLUGIN_ROOT/scripts/index-project.sh" ]]; then
+  "$PLUGIN_ROOT/scripts/index-project.sh" "$AUTONOMY_DIR/project_index.md" 2>/dev/null || true
+fi
+
 # Append autonomy protocol to CLAUDE.md
 if [[ -f "CLAUDE.md" ]]; then
   if grep -q "# Autonomy Protocol" "CLAUDE.md"; then
@@ -69,7 +74,7 @@ fi
 
 # Add runtime files to .gitignore
 if [[ -f ".gitignore" ]]; then
-  for pattern in ".claude/autonomy-loop.local.md" ".autonomy/loop-state.json" ".autonomy/progress.archive.txt" ".autonomy/.lock"; do
+  for pattern in ".claude/autonomy-loop.local.md" ".autonomy/loop-state.json" ".autonomy/progress.archive.txt" ".autonomy/.lock" ".autonomy/project_index.md"; do
     if ! grep -qF "$pattern" ".gitignore"; then
       echo "$pattern" >> ".gitignore"
     fi
@@ -80,6 +85,7 @@ else
 .autonomy/loop-state.json
 .autonomy/progress.archive.txt
 .autonomy/.lock
+.autonomy/project_index.md
 EOF
 fi
 
@@ -90,7 +96,8 @@ echo "Structure created:"
 echo "  .autonomy/"
 echo "  ├── feature_list.json   — Task queue"
 echo "  ├── progress.txt        — Handoff log between sessions"
-echo "  └── config.json         — Project settings"
+echo "  ├── config.json         — Project settings"
+echo "  └── project_index.md    — Project structure index (auto-generated)"
 echo ""
 echo "Next steps:"
 echo "  /autocc:add \"Task title\" \"Task description\"  — Add a task"
